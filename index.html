@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Database with Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            text-align: center;
+        }
+        form, input, button {
+            margin: 10px;
+            padding: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+        button {
+            cursor: pointer;
+        }
+        pre {
+            text-align: left;
+            background: #eee;
+            padding: 10px;
+            overflow: auto;
+            max-height: 300px;
+        }
+        #chatbox {
+            width: 100%;
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 10px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            text-align: left;
+        }
+    </style>
+    <script>
+        function getStoredBooks() {
+            return JSON.parse(localStorage.getItem('books')) || [];
+        }
+
+        function saveBooks(books) {
+            localStorage.setItem('books', JSON.stringify(books));
+        }
+
+        function fetchData() {
+            return getStoredBooks();
+        }
+
+        function displayBooks() {
+            const resultsContainer = document.getElementById('results');
+            resultsContainer.innerHTML = '';
+            const data = fetchData();
+            
+            if (data.length === 0) {
+                resultsContainer.innerHTML = '<p>No books found</p>';
+            } else {
+                resultsContainer.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            }
+        }
+
+        function previewFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('filePreview').innerHTML = `<pre>${e.target.result}</pre>`;
+            };
+            reader.readAsText(file);
+        }
+
+        function addBook() {
+            const title = document.getElementById('title').value.trim();
+            const author = document.getElementById('author').value.trim();
+            const year = document.getElementById('year').value.trim();
+            const publisher = document.getElementById('publisher').value.trim();
+            const isbn = document.getElementById('isbn').value.trim();
+            
+            if (!title || !author || !year || !publisher || !isbn) {
+                alert('Please fill in all fields');
+                return;
+            }
+            
+            const newBook = { title, author, year, publisher, isbn };
+            const books = getStoredBooks();
+            books.push(newBook);
+            saveBooks(books);
+            alert('Book added successfully!');
+            document.getElementById('bookForm').reset();
+            displayBooks();
+        }
+
+        function chatSearch() {
+            const query = document.getElementById('chatInput').value.toLowerCase().trim();
+            const chatbox = document.getElementById('chatbox');
+            const data = fetchData();
+
+            let keywords = [];
+            if (query.includes("book about")) {
+                keywords = query.replace("book about", "").trim().split(" ");
+            } else if (query.includes("find me")) {
+                keywords = query.replace("find me", "").trim().split(" ");
+            } else {
+                keywords = query.split(" ");
+            }
+
+            const results = data.filter(book =>
+                Object.entries(book).some(([key, value]) => {
+                    if (Array.isArray(value)) {
+                        return value.some(val => keywords.some(keyword => String(val).toLowerCase().includes(keyword)));
+                    }
+                    return keywords.some(keyword => String(value).toLowerCase().includes(keyword));
+                })
+            );
+            
+            let response = `<p><strong>You:</strong> ${query}</p>`;
+            if (results.length === 0) {
+                response += `<p><strong>Bot:</strong> No matching books found.</p>`;
+            } else {
+                response += `<p><strong>Bot:</strong> Found ${results.length} book(s):</p><pre>${JSON.stringify(results, null, 2)}</pre>`;
+            }
+            
+            chatbox.innerHTML += response;
+            document.getElementById('chatInput').value = '';
+        }
+    </script>
+</head>
+<body>
+    <h2>Book Database with Chat</h2>
+    <h3>Add a New Book</h3>
+    <form id="bookForm">
+        <input type="text" id="title" placeholder="Title" required>
+        <input type="text" id="author" placeholder="Author" required>
+        <input type="number" id="year" placeholder="Year" required>
+        <input type="text" id="publisher" placeholder="Publisher" required>
+        <input type="text" id="isbn" placeholder="ISBN" required>
+        <button type="button" onclick="addBook()">Add Book</button>
+    </form>
+    
+    <h3>Preview File Before Import</h3>
+    <input type="file" id="previewFileInput" accept=".txt,.json" onchange="previewFile(event)">
+    <div id="filePreview"></div>
+    
+    <h3>Stored Books</h3>
+    <div id="results"></div>
+    
+    <h3>Chat with Database</h3>
+    <input type="text" id="chatInput" placeholder="Ask about books...">
+    <button onclick="chatSearch()">Ask</button>
+    <div id="chatbox"></div>
+</body>
+</html>
